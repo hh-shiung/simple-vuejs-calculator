@@ -1,26 +1,26 @@
 <template>
   <div class="calculator">
-    <div class="display">{{ displayValue }}</div>
+    <div class="display">{{ displayValue ? displayValue : 0 }}</div>
     
-    <div type="button" class="btn" @click="clear()">C</div>
+    <div type="button" class="btn" @click="clear()">{{ displayValue ? 'C' : 'AC' }}</div>
     <div type="button" class="btn" @click="changeSign()">+/-</div>
     <div type="button" class="btn" @click="percent()">%</div>
-    <div type="button" class="btn operator">÷</div>
-    <div type="button" class="btn">7</div>
-    <div type="button" class="btn">8</div>
-    <div type="button" class="btn">9</div>
-    <div type="button" class="btn operator">*</div>
-    <div type="button" class="btn">4</div>
-    <div type="button" class="btn">5</div>
-    <div type="button" class="btn">6</div>
-    <div type="button" class="btn operator">-</div>
-    <div type="button" class="btn">1</div>
-    <div type="button" class="btn">2</div>
-    <div type="button" class="btn">3</div>
-    <div type="button" class="btn operator">+</div>
-    <div type="button" class="btn" style="grid-column: 1 / 3" >0</div>
-    <div type="button" class="btn">.</div>
-    <div type="button" class="btn operator">=</div>
+    <div type="button" class="btn operator" @click="setOperator('division')">÷</div>
+    <div type="button" class="btn" @click="append('7')">7</div>
+    <div type="button" class="btn" @click="append('8')">8</div>
+    <div type="button" class="btn" @click="append('9')">9</div>
+    <div type="button" class="btn operator" @click="setOperator('multiplication')">&times;</div>
+    <div type="button" class="btn" @click="append('4')">4</div>
+    <div type="button" class="btn" @click="append('5')">5</div>
+    <div type="button" class="btn" @click="append('6')">6</div>
+    <div type="button" class="btn operator" @click="setOperator('subtraction')">-</div>
+    <div type="button" class="btn" @click="append('1')">1</div>
+    <div type="button" class="btn" @click="append('2')">2</div>
+    <div type="button" class="btn" @click="append('3')">3</div>
+    <div type="button" class="btn operator" @click="setOperator('addition')">+</div>
+    <div type="button" class="btn" style="grid-column: 1 / 3" @click="appendZero()">0</div>
+    <div type="button" class="btn" @click="appendDot()">.</div>
+    <div type="button" class="btn operator" @click="calculate()">=</div>
   </div>
 </template>
 
@@ -30,21 +30,114 @@ export default {
   
   data () {
     return {
-      displayValue: 10
+      displayValue: null,
+      holdingValue: null,
+      operator: null,
+      hasOperator: false, // Reset displayValue for next setOperator value
+      pendingReset: false
     }
   },
 
   methods: {
     clear () {
-      this.$data.displayValue = 0
+      this.$data.displayValue = null
+      this.$data.holdingValue = null
+      this.$data.operator = null
+      this.$data.hasOperator = false
+      this.$data.pendingReset = false
+    },
+
+    hasValue () {
+      return Boolean(this.$data.displayValue)
     },
 
     changeSign () {
-      this.$data.displayValue *= -1
+      if (this.hasValue()) {
+        if (this.$data.displayValue.startsWith('-')) {
+          this.$data.displayValue = this.$data.displayValue.slice(1)
+        } else {
+          this.$data.displayValue = `-${this.$data.displayValue}`
+        }
+      } // else: Do nothing
     },
 
     percent () {
-      this.$data.displayValue /= 100
+      if (this.hasValue()) {
+        this.$data.displayValue = `${(parseFloat(this.$data.displayValue) / 100).toFixed(2)}`
+      }
+    },
+
+    // payload: String
+    append (payload) {
+      if (this.$data.pendingReset) {
+        this.clear()
+        this.$data.displayValue = `${payload}`
+      } else if (this.$data.hasOperator) {
+        this.$data.displayValue = `${payload}`
+        this.$data.hasOperator = false
+      } else {
+        this.$data.displayValue = `${this.$data.displayValue || ''}${payload}`
+      }
+    },
+
+    appendZero () {
+      if (
+        this.hasValue() && 
+        this.$data.displayValue !== '0'
+      ) {
+        this.append('0')
+      } // else: Do nothing
+    },
+
+    appendDot() {
+      if (this.hasValue()) {
+        if (!this.$data.displayValue.includes('.')) {
+          this.append('.')
+        } // else: Do nothing
+      } // else: Do nothing
+    },
+
+    // payload: String
+    setOperator(payload) {
+      this.$data.hasOperator = true
+      this.$data.holdingValue = this.$data.displayValue
+
+      switch(payload) {
+        case 'addition':
+          this.$data.operator = (a, b) => {
+            return `${parseFloat(a) + parseFloat(b)}`
+          }
+        break
+        case 'subtraction':
+          this.$data.operator = (a, b) => {
+            return `${parseFloat(a) - parseFloat(b)}`
+          }
+        break
+        case 'multiplication':
+          this.$data.operator = (a, b) => {
+            return `${parseFloat(a) * parseFloat(b)}`
+          }
+        break
+        case 'division':
+          this.$data.operator = (a, b) => {
+            return `${parseFloat(a) / parseFloat(b)}`
+          }
+        break
+        default:
+          console.warn('Invalid operator!')
+        break
+      }
+    },
+
+    calculate () {
+      if (this.$data.operator) {
+        this.$data.displayValue = `${this.$data.operator(this.$data.holdingValue, this.$data.displayValue)}`
+        // this.$data.operator = null
+        this.$data.pendingReset = true
+      } else {
+        // else: Notify that there are no operators set
+        console.warn('There are no operators!')
+      }
     }
   }
 }
